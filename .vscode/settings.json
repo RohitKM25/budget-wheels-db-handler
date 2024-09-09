@@ -1,0 +1,20 @@
+{
+     "sqltools.connections": [
+          {
+               "mysqlOptions": {
+                    "authProtocol": "default",
+                    "enableSsl": "Disabled"
+               },
+               "previewLimit": 50,
+               "server": "localhost",
+               "port": 3306,
+               "driver": "MySQL",
+               "name": "Budget Wheels",
+               "database": "budget_wheels",
+               "username": "root",
+               "password": "rohit1572005@themysql"
+          }
+     ],
+     "python.analysis.typeCheckingMode": "off",
+     "python.analysis.autoImportCompletions": true
+}
