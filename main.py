@@ -1,9 +1,12 @@
+import time
 import mysql.connector
 import csv
 import colorama as cm
 from helper import *
 import dotenv
 from tqdm import tqdm
+from bs4 import BeautifulSoup
+from selenium import webdriver
 cm.init(convert=True)
 
 CONFIG = dotenv.dotenv_values()
@@ -134,8 +137,8 @@ def db_migrate_init_data():
     models = {(i[1], i[2]) for i in raw_data}
     db_models = []
     for i in models:
-        db_model = {'id': generate_unique_id(),
-                    'name': i[1], 'make_name': i[0]}
+        db_model = {'id': generate_unique_id(
+        ), 'name': i[1], 'make_name': i[0]}
         if not db_insert_row('model', db_model, should_log=False):
             return False
         printc("Inserted {} {} into {}", data=[
@@ -171,7 +174,7 @@ def db_migrate_init_data():
         for j in range(len(db_tags)):
             if i[3][db_tags[j]['title']] == '':
                 continue
-            if not db_insert_row('vehicle_tag', {
+            if not db_insert_row('variant_tag', {
                 'tag_title': db_tags[j]['title'],
                 'variant_id': db_variant['id'],
                 'value': i[3][db_tags[j]['title']]
@@ -179,35 +182,59 @@ def db_migrate_init_data():
                 return False
     mysqlcnn.commit()
     printc('Succesfully inserted Variants.\n', type='s')
+
+    printc('Adding Make Images...')
+    url = "https://www.carwale.com"
+
+    driver = webdriver.Chrome()
+    driver.get(url)
+    time.sleep(5)
+    soup = BeautifulSoup(driver.page_source, features="html.parser")
+    imgs_div = soup.find_all("ul", "o-XylGE o-chzWeu o-cpnuEd")
+    imgs = imgs_div[0].find_all(
+        "img", "o-bXKmQE o-cgkaRG o-cQfblS o-bNxxEB o-pGqQl o-wBtSi o-bwUciP o-btTZkL o-bfyaNx o-eAZqQI")
+
+    mscur.execute('''
+        select name from make
+    ''')
+    makes = [i['name'] for i in mscur.fetchall()]
+
+    makes_w_img = []
+    for i in imgs:
+        title = i['alt'][:-5]
+        if title not in makes:
+            continue
+        makes_w_img.append(title)
+        mscur.execute(
+            'update make set img_path = %s where name = %s', (i['src'], title))
+        printc("Updated {} in {}", data=[
+            ['a2', title], ['a', 'make']])
+    printc('Succesfully updated Make Images.\n', type='s')
+
+    printc('Removing Makes without Images with CASCADE...')
+    for i in makes:
+        if i in makes_w_img:
+            continue
+        mscur.execute(
+            'delete from make where name = %s', (i,))
+        printc("Deleting {} from {}", data=[
+            ['a2', i], ['a', 'make']])
+    printc('Succesfully deleted Makes.\n', type='s')
+    mysqlcnn.commit()
     return True
 
 
 mscur = mysqlcnn.cursor(dictionary=True)
 
-should_migrate_db = True
-if not db_init(should_migrate_db):
-    exit(1)
-if should_migrate_db:
-    db_migrate_init_data()
-
-# mscur.execute('''
-#     select
-#               mo.make_name, mo.name as 'model', v.name as 'varant', vt.value
-#     from
-#               make as m, model as mo, variant as v, vehicle_tag as vt
-#     where
-#               vt.tag_title = 'Ex-Showroom Price' and
-#               v.id = vt.ref_id and
-#               mo.id = v.model_id
-#     order by cast(vt.value as unsigned)
-#     limit 10
-# ''')
-mscur.execute('''
-    desc model
-''')
-db_data = mscur.fetchall()
-printt(db_data)
-
+should_migrate_db = False
+try:
+    if not db_init(should_migrate_db):
+        exit(1)
+    if should_migrate_db:
+        print('here')
+        db_migrate_init_data()
+except Exception as ex:
+    print(ex)
 
 mscur.close()
 mysqlcnn.close()
