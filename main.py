@@ -7,6 +7,7 @@ import dotenv
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from selenium import webdriver
+import random as rand
 cm.init(convert=True)
 
 CONFIG = dotenv.dotenv_values()
@@ -29,7 +30,7 @@ TAG_CATEGORIES = {
     "Entertainment, Information & Communication": [],
     "Manufacturer Warranty": [],
 }
-HEADERS = "CNO,Make,Model,Variant,Ex-Showroom Price,Drivetrain,Fuel Tank Capacity,Fuel Type,Height,Length,Width,Body Type,Doors,City Mileage,Highway Mileage,ARAI Certified Mileage,ARAI Certified Mileage for CNG,Gears,Ground Clearance,Front Brakes,Rear Brakes,Front Suspension,Rear Suspension,Front Tyre & Rim,Rear Tyre & Rim,Power Steering,Power Windows,Power Seats,Keyless Entry,Power,Torque,Odometer,Speedometer,Tachometer,Tripmeter,Seating Capacity,Seats Material,Type,Wheelbase,Wheels Size,Start / Stop Button,12v Power Outlet,Audiosystem,Aux-in Compatibility,Basic Warranty,Bluetooth,Boot-lid Opener,Boot Space,CD / MP3 / DVD Player,Distance to Empty,Door Pockets,Extended Warranty,Fuel-lid Opener,Instrument Console,Minimum Turning Radius,Sun Visor,Third Row AC Vents,Ventilation System,Auto-Dimming Rear-View Mirror,Hill Assist,Gear Indicator,Ambient Lightning,Cargo/Boot Lights,Drive Modes,Lane Watch Camera/ Side Mirror Camera,Voice Recognition,Walk Away Auto Car Lock,ABS (Anti-lock Braking System),Headlight Reminder,Adjustable Headrests,Airbags,EBD (Electronic Brake-force Distribution),Gear Shift Reminder,Number of Airbags,Adjustable Steering Column,Misc,Other specs,Parking Assistance,Android Auto,Cigarette Lighter,Infotainment Screen,EBA (Electronic Brake Assist),Seat Height Adjustment,Navigation System,Second Row AC Vents,Tyre Pressure Monitoring System,Rear Center Armrest,ESP (Electronic Stability Program),Cooled Glove Box,Heated Seats,Turbocharger,,Rain Sensing Wipers,Paddle Shifters,Leather Wrapped Steering,Automatic Headlamps,ASR / Traction Control,Cruise Control,Heads-Up Display,Battery,Electric Range".split(
+HEADERS = "CNO,Make,Model,Variant,Ex-Showroom Price,Drivetrain,Fuel Tank Capacity,Fuel Type,Height,Length,Width,Body Type,Doors,City Mileage,Highway Mileage,ARAI Certified Mileage,ARAI Certified Mileage for CNG,Gears,Ground Clearance,Front Brakes,Rear Brakes,Front Suspension,Rear Suspension,Front Tyre & Rim,Rear Tyre & Rim,Power Steering,Power Windows,Power Seats,Keyless Entry,Power,Torque,Odometer,Speedometer,Tachometer,Tripmeter,Seating Capacity,Seats Material,Type,Wheelbase,Wheels Size,Start / Stop Button,12v Power Outlet,Audiosystem,Aux-in Compatibility,Basic Warranty,Bluetooth,Boot-lid Opener,Boot Space,CD / MP3 / DVD Player,Distance to Empty,Door Pockets,Extended Warranty,Fuel-lid Opener,Instrument Console,Minimum Turning Radius,Sun Visor,Third Row AC Vents,Ventilation System,Auto-Dimming Rear-View Mirror,Hill Assist,Gear Indicator,Ambient Lightning,Cargo/Boot Lights,Drive Modes,Lane Watch Camera/ Side Mirror Camera,Voice Recognition,Walk Away Auto Car Lock,ABS (Anti-lock Braking System),Headlight Reminder,Adjustable Headrests,Airbags,EBD (Electronic Brake-force Distribution),Gear Shift Reminder,Number of Airbags,Adjustable Steering Column,Misc,Other specs,Parking Assistance,Android Auto,Cigarette Lighter,Infotainment Screen,EBA (Electronic Brake Assist),Seat Height Adjustment,Navigation System,Second Row AC Vents,Tyre Pressure Monitoring System,Rear Center Armrest,ESP (Electronic Stability Program),Cooled Glove Box,Heated Seats,Turbocharger,,Rain Sensing Wipers,Paddle Shifters,Leather Wrapped Steering,Automatic Headlamps,ASR / Traction Control,Cruise Control,Heads-Up Display,Battery,Electric Range,ISOFIX Child Seat Anchor,ADAS,Wheel Material,Year,Speakers,Colors,Sunroof,Headlights".split(
     ',')
 
 
@@ -41,10 +42,39 @@ def csv_write_filtered_data():
     with open(CONFIG['RAW_DATA_FILE_PATH'], mode='r', newline='') as data_file, open(CONFIG['FILTERED_DATA_FILE_PATH'], mode='w', newline='') as filtered_data_file:
         csv_writer = csv.writer(filtered_data_file)
         data = []
+
+        def get_random_year():
+            return rand.choice(['2019', '2020', '2021', '2022', '2023'])
+
+        def get_random_speakers():
+            return rand.randint(4, 8)
+
+        def get_random_colors():
+            return rand.choices(['beige', 'blue', 'yellow', 'sunset orange', 'graphite', 'red', 'forest green', 'white', 'silver', 'magma grey', 'midnight blue', 'dual-tone red on black', 'dual-tone red on white', 'dual-tone blue on black', 'dual-tone blue on white', 'dual-tone white on black', 'Lava Blue', 'Cherry Red', 'Seaweed Green'], k=rand.randint(3, 8))
+        man_year = get_random_year()
+        speakers = get_random_speakers()
+        prev_model = None
         for row in csv.reader(data_file):
-            if int(row[4]) <= 2500000:
-                data.append(row)
-                csv_writer.writerow(row)
+            if int(row[4]) > 2500000:
+                continue
+            child_seat_anchor = 'Yes' if int(row[4]) > 800000 else 'No'
+            adas = 'Yes' if row[2].lower() in (
+                'seltos', 'creta', 'xuv500', 'hector') and int(row[4]) > 1800000 else 'No'
+            wheel_material = 'Alloy' if int(row[4]) > 1000000 else 'Steel'
+            adas = 'Yes' if row[2].lower() in (
+                'seltos', 'creta', 'xuv500', 'hector') else 'No'
+            sunroof = 'Yes' if int(row[4]) > 1500000 else 'No'
+            headlights = 'LED' if int(row[4]) > 1500000 else 'Xenon' if int(
+                row[4]) > 1200000 else 'Halogen'
+            if prev_model != row[2]:
+                man_year = get_random_year()
+                speakers = get_random_speakers()
+                colors = ', '.join(get_random_colors())
+                prev_model = row[2]
+            row += [child_seat_anchor, adas,
+                    wheel_material, man_year, str(speakers), colors, sunroof, headlights]
+            data.append(row)
+            csv_writer.writerow(row)
     return data
 
 
@@ -62,7 +92,7 @@ def db_insert_row(table, data, should_commit=False, should_log=True):
         values = str(tuple(data.values()))
         values = values if ',)' not in values else values[:-2] + ')'
         mscur.execute('insert into {}({}) values {}'.format(
-            table, keys, values))
+            table, keys, values).replace('None', 'null'))
         if should_commit:
             mysqlcnn.commit()
         if should_log:
@@ -121,7 +151,7 @@ def db_init(force=False):
 
 
 def db_migrate_init_data():
-    raw_data = csv_load_data()
+    raw_data = csv_write_filtered_data()
 
     printc('Inserting Makes...')
     makes = {i[1] for i in raw_data}
@@ -172,12 +202,10 @@ def db_migrate_init_data():
         printc("Inserted {} {} {} into {}", data=[
             ['a2', i[0]], ['a2', i[1]], ['a2', i[2]], ['a', 'variant']])
         for j in range(len(db_tags)):
-            if i[3][db_tags[j]['title']] == '':
-                continue
             if not db_insert_row('variant_tag', {
                 'tag_title': db_tags[j]['title'],
                 'variant_id': db_variant['id'],
-                'value': i[3][db_tags[j]['title']]
+                'value': None if i[3][db_tags[j]['title']] == '' else i[3][db_tags[j]['title']]
             }, should_log=False):
                 return False
     mysqlcnn.commit()
@@ -226,7 +254,7 @@ def db_migrate_init_data():
 
 mscur = mysqlcnn.cursor(dictionary=True)
 
-should_migrate_db = False
+should_migrate_db = True
 try:
     if not db_init(should_migrate_db):
         exit(1)
