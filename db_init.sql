@@ -33,3 +33,11 @@ CREATE TABLE variant_tag (
   value text,
   FOREIGN KEY (tag_title) REFERENCES tag(title) ON DELETE CASCADE
 );
+delimiter // CREATE FUNCTION `get_tag_value_from_title` (variant_id varchar(255), tag_title varchar(255)) RETURNS varchar(255) reads sql data BEGIN
+declare tag_value varchar(255);
+select vt.value into tag_value
+from variant_tag vt
+where vt.variant_id = variant_id
+  and vt.tag_title = tag_title;
+RETURN tag_value;
+END // delimiter;

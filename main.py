@@ -2,35 +2,38 @@ import time
 import mysql.connector
 import csv
 import colorama as cm
+import selenium
 from helper import *
 import dotenv
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
 import random as rand
 cm.init(convert=True)
 
 CONFIG = dotenv.dotenv_values()
 TAG_CATEGORIES = {
-    "Engine & Transmission": ["Drivetrain", "Fuel Type", "City Mileage", "Highway Mileage", "ARAI Certified Mileage", "ARAI Certified Mileage for CNG", "Gears", "Power", "Torque", "Turbocharger", "Battery", "Electric Range"],
-    "Dimensions & Weight": ["Height", "Length", "Width", "Wheelbase"],
-    "Capacity": ["Doors", "Seating Capacity", "Fuel Tank Capacity"],
-    "Suspensions, Brakes, Sterring & Tyres": ["Front Brakes", "Rear Brakes", "Front Suspension", "Rear Suspension", "Front Tyre & Rim", "Rear Tyre & Rim", "Wheels Size"],
-    "Safety": ["Airbags", "ISOFIX (Child-Seat Mount)", "Number of Airbags"],
-    "Braking & Traction": ["ASR / Traction Control", "ABS (Anti-lock Braking System)", "EBD (Electronic Brake-force Distribution)", "EBA (Electronic Brake Assist)", "Hill Assist"],
-    "Locks & Security": [],
-    "Comfort & Convenience": ["Third Row AC Vents", "Ventilation System", "Second Row AC Vents"],
-    "Telematics": [],
-    "Seats & Upholstery": ["Power Seats", "Seat Height Adjustment", "Rear Center Armrest", "Heated Seats", "Leather Wrapped Steering"],
-    "Storage": ["Cooled Glove Box"],
-    "Doors, Windows, Mirrors & Wipers": [],
-    "Exterior": [],
-    "Lighting": [],
-    "Instrumentation": [],
-    "Entertainment, Information & Communication": [],
-    "Manufacturer Warranty": [],
+    "Engine & Transmission": ["Drivetrain", "Fuel Type", "City Mileage", "Highway Mileage", "ARAI Certified Mileage", "ARAI Certified Mileage for CNG", "Gears", "Power", "Torque", "Turbocharger", "Battery", "Electric Range", "Distance to Empty", "Electric Range"],
+    "Dimensions & Weight": ["Height", "Length", "Width", "Wheelbase", "Body Type", "Ground Clearance", "Minimum Turning Radius"],
+    "Capacity": ["Doors", "Seating Capacity", "Fuel Tank Capacity", "Boot Space"],
+    "Suspensions, Brakes, Steering & Tyres": ["Front Brakes", "Rear Brakes", "Front Suspension", "Rear Suspension", "Front Tyre & Rim", "Rear Tyre & Rim", "Wheels Size", "Power Steering"],
+    "Safety": ["Airbags", "ISOFIX (Child-Seat Mount)", "Number of Airbags", "ESP (Electronic Stability Program)", "ASR / Traction Control", "Hill Assist", "ADAS"],
+    "Braking & Traction": ["ABS (Anti-lock Braking System)", "EBD (Electronic Brake-force Distribution)", "EBA (Electronic Brake Assist)"],
+    "Locks & Security": ["Keyless Entry"],
+    "Comfort & Convenience": ["Third Row AC Vents", "Ventilation System", "Second Row AC Vents",  "Start / Stop Button", "12v Power Outlet", "Boot-lid Opener", "Fuel-lid Opener", "Sun Visor", "Gear Indicator", "Drive Modes", "Lane Watch Camera/ Side Mirror Camera", "Walk Away Auto Car Lock", "Headlight Reminder", "Gear Shift Reminder", "Adjustable Steering Column", "Parking Assistance", "Tyre Pressure Monitoring System", "Rain Sensing Wipers", "Paddle Shifters", "Cruise Control", "Heads-Up Display", "Automatic Headlamps"],
+    "Seats & Upholstery": ["Power Seats", "Seat Height Adjustment", "Rear Center Armrest", "Heated Seats", "Leather Wrapped Steering", "Seats Material"],
+    "Storage": ["Cooled Glove Box", "Door Pockets", "Adjustable Headrests"],
+    "Doors, Windows, Mirrors & Wipers": ["Power Windows", "Auto-Dimming Rear-View Mirror"],
+    "Exterior": ["Colors", "Sunroof", "Wheel Material"],
+    "Lighting": ["Ambient Lightning", "Cargo/Boot Lights", "Headlights"],
+    "Instrumentation": ["Odometer", "Speedometer", "Tachometer", "Tripmeter", "Instrument Console"],
+    "Entertainment, Information & Communication": ["Audiosystem", "Aux-in Compatibility", "Bluetooth", "CD / MP3 / DVD Player", "Voice Recognition", "Android Auto", "Infotainment Screen", "Navigation System", "Speakers"],
+    "Manufacturer Warranty": ["Basic Warranty", "Extended Warranty"],
 }
-HEADERS = "CNO,Make,Model,Variant,Ex-Showroom Price,Drivetrain,Fuel Tank Capacity,Fuel Type,Height,Length,Width,Body Type,Doors,City Mileage,Highway Mileage,ARAI Certified Mileage,ARAI Certified Mileage for CNG,Gears,Ground Clearance,Front Brakes,Rear Brakes,Front Suspension,Rear Suspension,Front Tyre & Rim,Rear Tyre & Rim,Power Steering,Power Windows,Power Seats,Keyless Entry,Power,Torque,Odometer,Speedometer,Tachometer,Tripmeter,Seating Capacity,Seats Material,Type,Wheelbase,Wheels Size,Start / Stop Button,12v Power Outlet,Audiosystem,Aux-in Compatibility,Basic Warranty,Bluetooth,Boot-lid Opener,Boot Space,CD / MP3 / DVD Player,Distance to Empty,Door Pockets,Extended Warranty,Fuel-lid Opener,Instrument Console,Minimum Turning Radius,Sun Visor,Third Row AC Vents,Ventilation System,Auto-Dimming Rear-View Mirror,Hill Assist,Gear Indicator,Ambient Lightning,Cargo/Boot Lights,Drive Modes,Lane Watch Camera/ Side Mirror Camera,Voice Recognition,Walk Away Auto Car Lock,ABS (Anti-lock Braking System),Headlight Reminder,Adjustable Headrests,Airbags,EBD (Electronic Brake-force Distribution),Gear Shift Reminder,Number of Airbags,Adjustable Steering Column,Misc,Other specs,Parking Assistance,Android Auto,Cigarette Lighter,Infotainment Screen,EBA (Electronic Brake Assist),Seat Height Adjustment,Navigation System,Second Row AC Vents,Tyre Pressure Monitoring System,Rear Center Armrest,ESP (Electronic Stability Program),Cooled Glove Box,Heated Seats,Turbocharger,,Rain Sensing Wipers,Paddle Shifters,Leather Wrapped Steering,Automatic Headlamps,ASR / Traction Control,Cruise Control,Heads-Up Display,Battery,Electric Range,ISOFIX Child Seat Anchor,ADAS,Wheel Material,Year,Speakers,Colors,Sunroof,Headlights".split(
+HEADERS = "CNO,Make,Model,Variant,Ex-Showroom Price,Drivetrain,Fuel Tank Capacity,Fuel Type,Height,Length,Width,Body Type,Doors,City Mileage,Highway Mileage,ARAI Certified Mileage,ARAI Certified Mileage for CNG,Gears,Ground Clearance,Front Brakes,Rear Brakes,Front Suspension,Rear Suspension,Front Tyre & Rim,Rear Tyre & Rim,Power Steering,Power Windows,Power Seats,Keyless Entry,Power,Torque,Odometer,Speedometer,Tachometer,Tripmeter,Seating Capacity,Seats Material,Type,Wheelbase,Wheels Size,Start / Stop Button,12v Power Outlet,Audiosystem,Aux-in Compatibility,Basic Warranty,Bluetooth,Boot-lid Opener,Boot Space,CD / MP3 / DVD Player,Distance to Empty,Door Pockets,Extended Warranty,Fuel-lid Opener,Instrument Console,Minimum Turning Radius,Sun Visor,Third Row AC Vents,Ventilation System,Auto-Dimming Rear-View Mirror,Hill Assist,Gear Indicator,Ambient Lightning,Cargo/Boot Lights,Drive Modes,Lane Watch Camera/ Side Mirror Camera,Voice Recognition,Walk Away Auto Car Lock,ABS (Anti-lock Braking System),Headlight Reminder,Adjustable Headrests,Airbags,EBD (Electronic Brake-force Distribution),Gear Shift Reminder,Number of Airbags,Adjustable Steering Column,Misc,Other specs,Parking Assistance,Android Auto,Cigarette Lighter,Infotainment Screen,EBA (Electronic Brake Assist),Seat Height Adjustment,Navigation System,Second Row AC Vents,Tyre Pressure Monitoring System,Rear Center Armrest,ESP (Electronic Stability Program),Cooled Glove Box,Heated Seats,Turbocharger,Rain Sensing Wipers,Paddle Shifters,Leather Wrapped Steering,Automatic Headlamps,ASR / Traction Control,Cruise Control,Battery,Electric Range,ISOFIX Child Seat Anchor,ADAS,Wheel Material,Year,Speakers,Colors,Sunroof,Headlights".split(
     ',')
 
 
@@ -76,6 +79,41 @@ def csv_write_filtered_data():
             data.append(row)
             csv_writer.writerow(row)
     return data
+
+
+def get_model_img_paths_webed():
+    options = Options()
+    options.add_argument('--log-level=3')
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    driver = webdriver.Chrome()
+    time.sleep(5)
+    data = []
+    with open('./vehicle_model_img_paths.csv', newline='') as img_path_file, open('./vehicle_model_img_paths_out.csv', newline='', mode='w') as out_file:
+        writer = csv.writer(out_file)
+        for row in csv.reader(img_path_file):
+            if row[1] != '':
+                data.append(row)
+                continue
+            print(row[0], ':')
+            driver.get('https://www.carwale.com')
+            inp = driver.find_element(
+                By.XPATH, "//*[@placeholder='Type to select car name, e.g. Jeep Meridian']")
+            print(inp)
+            inp.send_keys(row[0])
+            time.sleep(1)
+            inp.send_keys(Keys.ENTER)
+            time.sleep(3)
+            row[1] = input('>>>')
+            writer.writerow(row)
+    return data[1:]
+
+
+def get_model_img_paths():
+    data = []
+    with open('./vehicle_model_img_paths_out.csv', newline='') as csv_file:
+        for row in csv.reader(csv_file):
+            data.append(row)
+    return data[1:]
 
 
 def csv_load_data():
@@ -165,23 +203,48 @@ def db_migrate_init_data():
 
     printc('Inserting Models...')
     models = {(i[1], i[2]) for i in raw_data}
+    model_img_paths = get_model_img_paths()
     db_models = []
     for i in models:
         db_model = {'id': generate_unique_id(
         ), 'name': i[1], 'make_name': i[0]}
         if not db_insert_row('model', db_model, should_log=False):
             return False
+        img_paths = [ip for ip in model_img_paths if ip[0].lower() ==
+                     db_model['name'].lower()]
+        if len(img_paths) > 0:
+            db_model_image = {
+                'model_id': db_model['id'], 'path': img_paths[0][1]}
+            if not db_insert_row('model_image', db_model_image, should_log=False):
+                return False
         printc("Inserted {} {} into {}", data=[
             ['a2', i[0]], ['a2', i[1]], ['a', 'model']])
         db_models.append(db_model)
     mysqlcnn.commit()
     printc('Succesfully inserted Models.\n', type='s')
 
+    printc('Inserting Tag Categories...')
+    db_tag_categories = []
+    for i in TAG_CATEGORIES:
+        db_tag_category = {
+            'title': i}
+        if not db_insert_row('tag_category', db_tag_category, should_log=False):
+            return False
+        printc("Inserted {} into {}", data=[
+            ['a2', i], ['a', 'tag_category']])
+        db_tag_categories.append(db_tag_category)
+    mysqlcnn.commit()
+    printc('Succesfully inserted Tag Categories.\n', type='s')
+
     printc('Inserting Tags...')
     db_tags = []
     for i in HEADERS[4:]:
+        tag_category_titles = [
+            j for j in TAG_CATEGORIES if i in TAG_CATEGORIES[j]]
         db_tag = {
             'title': i}
+        if len(tag_category_titles) > 0:
+            db_tag['tag_category_title'] = tag_category_titles[0]
         if not db_insert_row('tag', db_tag, should_log=False):
             return False
         printc("Inserted {} into {}", data=[
@@ -263,6 +326,9 @@ try:
         db_migrate_init_data()
 except Exception as ex:
     print(ex)
+mscur.execute('desc variant_tag')
+printt(
+    mscur.fetchall())
 
 mscur.close()
 mysqlcnn.close()
